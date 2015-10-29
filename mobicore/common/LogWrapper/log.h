@@ -34,17 +34,10 @@
 #ifndef TLCWRAPPERANDROIDLOG_H_
 #define TLCWRAPPERANDROIDLOG_H_
 
-#ifndef WIN32
 #include <unistd.h>
-#define GETPID getpid
-#else
-#include <process.h>
-#define GETPID _getpid
-#endif
 #include <stdio.h>
-#ifndef WIN32
 #include <android/log.h>
-#endif
+#include <errno.h>
 #include <string.h>
 
 /** LOG_I(fmt, args...)
