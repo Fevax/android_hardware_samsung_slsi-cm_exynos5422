@@ -1,6 +1,7 @@
 
-#ifndef __DECON_FB_H__
-#define __DECON_FB_H__
+#ifndef __FIMD_FB_H__
+#define __FIMD_FB_H__
+#include <linux/types.h>
 
 #if defined(CONFIG_FB_EXYNOS_FIMD_MC) || defined(CONFIG_FB_EXYNOS_FIMD_MC_WB)
 #include <media/v4l2-subdev.h>
@@ -9,23 +10,15 @@
 #include <media/v4l2-device.h>
 #include <media/exynos_mc.h>
 #include <plat/map-base.h>
-#define OTF_OUT_BPP	(32)
 #endif
 
-#include <linux/fb.h>
-#include <linux/kthread.h>
-#include <media/media-entity.h>
-
-#ifdef CONFIG_FB_WINDOW_UPDATE
-//#define WINDOW_UPDATE_DEBUG
-#endif
 /* S3C_FB_MAX_WIN
  * Set to the maximum number of windows that any of the supported hardware
  * can use. Since the platform data uses this for an array size, having it
  * set to the maximum of any version of the hardware can do is safe.
  */
 #define S3C_FB_MAX_WIN	(5)
-#define S3C_WIN_UPDATE_IDX      (5)
+
 #ifdef CONFIG_FB_EXYNOS_FIMD_MC
 #define SYSREG_MIXER0_VALID	(1 << 7)
 #define SYSREG_MIXER1_VALID	(1 << 4)
@@ -46,6 +39,14 @@
 #define SYSREG_GSCLBLK_CFG	(S3C_VA_SYS + 0x0224)
 #endif
 
+#define VALID_BPP(x) (1 << ((x) - 1))
+
+#define OSD_BASE(win, variant) ((variant).osd + ((win) * (variant).osd_stride))
+#define VIDOSD_A(win, variant) (OSD_BASE(win, variant) + 0x00)
+#define VIDOSD_B(win, variant) (OSD_BASE(win, variant) + 0x04)
+#define VIDOSD_C(win, variant) (OSD_BASE(win, variant) + 0x08)
+#define VIDOSD_D(win, variant) (OSD_BASE(win, variant) + 0x0C)
+
 enum s3c_fb_pm_status {
 	POWER_ON = 0,
 	POWER_DOWN = 1,
@@ -58,14 +59,9 @@ enum s3c_fb_psr_mode {
 	S3C_FB_MIPI_COMMAND_MODE = 2,
 };
 
-enum decon_trig_mode {
-	DECON_HW_TRIG = 0,
-	DECON_SW_TRIG
-};
-
-struct decon_fb_videomode {
-	struct fb_videomode videomode;
-
+#ifdef CONFIG_FB_I80_COMMAND_MODE
+struct s3c_fb_i80mode {
+	const char *name;
 	u8 cs_setup_time;
 	u8 wr_setup_time;
 	u8 wr_act_time;
@@ -73,7 +69,18 @@ struct decon_fb_videomode {
 	u8 auto_cmd_rate;
 	u8 frame_skip:2;
 	u8 rs_pol:1;
+	u32 refresh;
+	u32 left_margin;
+	u32 right_margin;
+	u32 upper_margin;
+	u32 lower_margin;
+	u32 hsync_len;
+	u32 vsync_len;
+	u32 xres;
+	u32 yres;
+	u32 pixclock;
 };
+#endif
 
 /**
  * struct s3c_fb_pd_win - per window setup data
@@ -85,7 +92,11 @@ struct decon_fb_videomode {
  */
 
 struct s3c_fb_pd_win {
-	struct decon_fb_videomode win_mode;
+#ifdef CONFIG_FB_I80_COMMAND_MODE
+	struct s3c_fb_i80mode	win_mode;
+#else
+	struct fb_videomode	win_mode;
+#endif
 
 	unsigned short		default_bpp;
 	unsigned short		max_bpp;
@@ -149,6 +160,7 @@ struct s3c_fb_platdata {
 struct s3c_fb_variant {
 	unsigned int	is_2443:1;
 	unsigned short	nr_windows;
+	unsigned int	vidcon1;
 	unsigned int	vidtcon;
 	unsigned short	wincon;
 	unsigned short	winmap;
@@ -243,14 +255,7 @@ struct s3c_reg_data {
 	u32			vidw_buf_size[S3C_FB_MAX_WIN];
 	struct s3c_dma_buf_data	dma_buf_data[S3C_FB_MAX_WIN];
 	unsigned int		bandwidth;
-	unsigned int		num_of_window;
 	u32			win_overlap_cnt;
-	int 			otf_state[S3C_FB_MAX_WIN];
-	u32 		x[S3C_FB_MAX_WIN + 1];
-	u32			y[S3C_FB_MAX_WIN + 1];
-	u32 		w[S3C_FB_MAX_WIN + 1];
-	u32 		h[S3C_FB_MAX_WIN + 1];
-	bool		need_update;
 };
 #endif
 
@@ -289,7 +294,6 @@ struct s3c_fb_win {
 	struct v4l2_subdev sd; /* Take a window as a v4l2_subdevice */
 #endif
 	int local; /* use of local path gscaler to window in fimd */
-	unsigned long state;
 };
 
 /**
@@ -323,14 +327,6 @@ struct s3c_fb_debug {
 };
 #endif
 
-struct s3c_fb_win_rect {
-	int	x;
-	int	y;
-	__u32	w;
-	__u32	h;
-};
-
-
 /**
  * struct s3c_fb - overall hardware state of the hardware
  * @slock: The spinlock protection for this data sturcture.
@@ -349,6 +345,9 @@ struct s3c_fb_win_rect {
 struct s3c_fb {
 	spinlock_t		slock;
 	struct device		*dev;
+	struct clk              *bus_clk;
+	struct clk              *lcd_clk;
+	struct clk              *axi_disp1;
 	void __iomem		*regs;
 	struct s3c_fb_variant	 variant;
 
@@ -361,10 +360,6 @@ struct s3c_fb {
 	int			 irq_no;
 	struct s3c_fb_vsync	 vsync_info;
 	enum s3c_fb_pm_status	 power_state;
-
-	enum s3c_fb_psr_mode psr_mode;
-	enum decon_trig_mode trig_mode;
-	int			blank_mode;
 
 #ifdef CONFIG_ION_EXYNOS
 	struct ion_client	*fb_ion_client;
@@ -390,29 +385,6 @@ struct s3c_fb {
 	struct v4l2_subdev sd_wb;	/* Take a FIMD1 as a v4l2_subdevice */
 #endif
 
-#ifdef CONFIG_DEBUG_FS
-	struct dentry		*debug_dentry;
-	struct s3c_fb_debug	debug_data;
-#endif
-	struct exynos5_bus_mif_handle *fb_mif_handle;
-	struct exynos5_bus_int_handle *fb_int_handle;
-
-	struct decon_lcd *lcd_info;
-	atomic_t	dsd_clk_ref_cnt;
-#ifdef CONFIG_FB_WINDOW_UPDATE
-	struct s3c_fb_win_rect	update_win;
-	bool	need_update;
-	bool	full_update;
-#ifdef CONFIG_FB_DSU
-	bool	need_DSU_update;
-	bool	DSU_mode;
-	int		DSU_x_delta;
-	int		DSU_y_delta;
-#endif
-#endif
-#if defined(CONFIG_FB_HIBERNATION_DISPLAY) || defined(CONFIG_FB_WINDOW_UPDATE)
-	struct decon_lcd	*lcd_update;
-#endif
 #if defined(CONFIG_FB_I80_COMMAND_MODE) && defined(CONFIG_LCD_PCD)
 	int			pcd;
 	unsigned int		pcd_irq;
@@ -420,6 +392,15 @@ struct s3c_fb {
 	unsigned int		pcd_detected;
 	struct notifier_block	pcd_reboot_noti;
 #endif
+
+#ifdef CONFIG_DEBUG_FS
+	struct dentry		*debug_dentry;
+	struct s3c_fb_debug	debug_data;
+#endif
+	struct exynos5_bus_mif_handle *fb_mif_handle;
+	struct exynos5_bus_int_handle *fb_int_handle;
+
+	enum s3c_fb_psr_mode psr_mode;
 };
 
 struct s3c_fb_rect {
@@ -470,20 +451,11 @@ enum s3c_fb_blending {
 	S3C_FB_BLENDING_MAX = 3,
 };
 
-enum otf_status {
-	S3C_FB_DMA,
-	S3C_FB_LOCAL,
-	S3C_FB_READY_TO_LOCAL,
-	S3C_FB_S_STREAM,
-};
-
 struct s3c_fb_win_config {
 	enum {
 		S3C_FB_WIN_STATE_DISABLED = 0,
 		S3C_FB_WIN_STATE_COLOR,
 		S3C_FB_WIN_STATE_BUFFER,
-		S3C_FB_WIN_STATE_OTF,
-		S3C_FB_WIN_STATE_UPDATE,
 	} state;
 
 	union {
@@ -505,15 +477,9 @@ struct s3c_fb_win_config {
 	__u32	h;
 };
 
-#define WIN_CONFIG_DMA(x) (regs->otf_state[x] != S3C_FB_WIN_STATE_OTF)
-
 struct s3c_fb_win_config_data {
 	int	fence;
-#ifdef CONFIG_FB_WINDOW_UPDATE
-	struct s3c_fb_win_config config[S3C_FB_MAX_WIN + 1];
-#else
 	struct s3c_fb_win_config config[S3C_FB_MAX_WIN];
-#endif
 };
 
 
@@ -521,11 +487,6 @@ int s3c_fb_runtime_suspend(struct device *dev);
 int s3c_fb_runtime_resume(struct device *dev);
 int s3c_fb_resume(struct device *dev);
 int s3c_fb_suspend(struct device *dev);
-int disp_pm_power_on(struct s3c_fb *sfb);
-int disp_pm_power_off(struct s3c_fb *sfb);
-
-void s3c_fb_activate_vsync(struct s3c_fb *sfb);
-void s3c_fb_deactivate_vsync(struct s3c_fb *sfb);
 
 #define VALID_BPP(x) (1 << ((x) - 1))
 #define VALID_BPP124 (VALID_BPP(1) | VALID_BPP(2) | VALID_BPP(4))

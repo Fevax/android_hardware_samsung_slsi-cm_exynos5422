@@ -19,9 +19,6 @@
 #ifndef __DECON_FB_H__
 #define __DECON_FB_H__
 
-#define S3C_FB_MAX_WIN	(5)
-#define S3C_WIN_UPDATE_IDX (5)
-
 struct s3c_fb_user_window {
 	int x;
 	int y;
@@ -63,13 +60,6 @@ enum s3c_fb_blending {
 	S3C_FB_BLENDING_MAX = 3,
 };
 
-enum otf_status {
-	S3C_FB_DMA,
-	S3C_FB_LOCAL,
-	S3C_FB_STOP_DMA,
-	S3C_FB_READY_TO_LOCAL,
-};
-
 struct s3c_fb_win_config {
 	enum {
 		S3C_FB_WIN_STATE_DISABLED = 0,
@@ -78,7 +68,6 @@ struct s3c_fb_win_config {
 		S3C_FB_WIN_STATE_OTF,
 		S3C_FB_WIN_STATE_UPDATE,
 	} state;
-
 	union {
 		__u32 color;
 		struct {
@@ -99,24 +88,16 @@ struct s3c_fb_win_config {
 	bool protection;
 };
 
-#define WIN_CONFIG_DMA(x) (regs->otf_state[x] != S3C_FB_WIN_STATE_OTF)
-
+#define S3C_FB_MAX_WIN (5)
+#define S3C_WIN_UPDATE_IDX (5)
 struct s3c_fb_win_config_data {
 	int fence;
+#ifdef CONFIG_FB_WINDOW_UPDATE
 	struct s3c_fb_win_config config[S3C_FB_MAX_WIN + 1];
+#else
+	struct s3c_fb_win_config config[S3C_FB_MAX_WIN];
+#endif
 };
-
-
-int s3c_fb_runtime_suspend(struct device *dev);
-int s3c_fb_runtime_resume(struct device *dev);
-int s3c_fb_resume(struct device *dev);
-int s3c_fb_suspend(struct device *dev);
-int disp_pm_power_on(struct s3c_fb *sfb);
-int disp_pm_power_off(struct s3c_fb *sfb);
-
-#define VALID_BPP(x) (1 << ((x) - 1))
-#define VALID_BPP124 (VALID_BPP(1) | VALID_BPP(2) | VALID_BPP(4))
-#define VALID_BPP1248 (VALID_BPP124 | VALID_BPP(8))
 
 /* IOCTL commands */
 #define S3CFB_WIN_POSITION		_IOW('F', 203, \

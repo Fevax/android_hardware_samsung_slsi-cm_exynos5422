@@ -1,169 +1,417 @@
 /*
- * Copyright (C) 2012 Samsung Electronics Co., Ltd.
+ * include/linux/ion.h
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Copyright (C) 2011 Google, Inc.
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
  */
 
-#ifndef _LIB_ION_H_
-#define _LIB_ION_H_
+#ifndef _LINUX_ION_H
+#define _LINUX_ION_H
 
-#include <unistd.h> /* size_t */
+#include <linux/types.h>
 
-#define ION_FLAG_CACHED 1
-#define ION_FLAG_CACHED_NEEDS_SYNC 2
+struct ion_handle;
+typedef struct ion_handle *ion_user_handle_t;
 
-#define ION_HEAP_SYSTEM_MASK            (1 << 0)
-#define ION_HEAP_SYSTEM_CONTIG_MASK     (1 << 1)
-#define ION_HEAP_EXYNOS_CONTIG_MASK     (1 << 4)
-#define ION_HEAP_EXYNOS_MASK            (1 << 5)
-#define ION_EXYNOS_FIMD_VIDEO_MASK    (1 << 28)
-#define ION_EXYNOS_GSC_MASK		(1 << 27)
-#define ION_EXYNOS_MFC_OUTPUT_MASK    (1 << 26)
-#define ION_EXYNOS_MFC_INPUT_MASK    (1 << 25)
-
-
-/* ION_MSYNC_FLAGS
- * values of @flags parameter to ion_msync()
- *
- * IMSYNC_DEV_TO_READ: Device only reads the buffer
- * IMSYNC_DEV_TO_WRITE: Device may writes to the buffer
- * IMSYNC_DEV_TO_RW: Device reads and writes to the buffer
- *
- * IMSYNC_SYNC_FOR_DEV: ion_msync() for device to access the buffer
- * IMSYNC_SYNC_FOR_CPU: ion_msync() for CPU to access the buffer after device
- *                      has accessed it.
- *
- * The values must be ORed with one of IMSYNC_DEV_* and one of IMSYNC_SYNC_*.
- * Otherwise, ion_msync() will not effect.
+/**
+ * enum ion_heap_types - list of all possible types of heaps
+ * @ION_HEAP_TYPE_SYSTEM:	 memory allocated via vmalloc
+ * @ION_HEAP_TYPE_SYSTEM_CONTIG: memory allocated via kmalloc
+ * @ION_HEAP_TYPE_CARVEOUT:	 memory allocated from a prereserved
+ * 				 carveout heap, allocations are physically
+ * 				 contiguous
+ * @ION_HEAP_TYPE_DMA:		 memory allocated via DMA API
+ * @ION_NUM_HEAPS:		 helper for iterating over heaps, a bit mask
+ * 				 is used to identify the heaps, so only 32
+ * 				 total heap types are supported
  */
-enum ION_MSYNC_FLAGS {
-    IMSYNC_DEV_TO_READ = 0,
-    IMSYNC_DEV_TO_WRITE = 1,
-    IMSYNC_DEV_TO_RW = 2,
-    IMSYNC_SYNC_FOR_DEV = 0x10000,
-    IMSYNC_SYNC_FOR_CPU = 0x20000,
+enum ion_heap_type {
+	ION_HEAP_TYPE_SYSTEM,
+	ION_HEAP_TYPE_SYSTEM_CONTIG,
+	ION_HEAP_TYPE_CARVEOUT,
+	ION_HEAP_TYPE_CHUNK,
+	ION_HEAP_TYPE_DMA,
+	ION_HEAP_TYPE_CUSTOM, /* must be last so device specific heaps always
+				 are at the end of this enum */
+	ION_NUM_HEAPS = 16,
 };
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#define ION_HEAP_SYSTEM_MASK		(1 << ION_HEAP_TYPE_SYSTEM)
+#define ION_HEAP_SYSTEM_CONTIG_MASK	(1 << ION_HEAP_TYPE_SYSTEM_CONTIG)
+#define ION_HEAP_CARVEOUT_MASK		(1 << ION_HEAP_TYPE_CARVEOUT)
+#define ION_HEAP_TYPE_DMA_MASK		(1 << ION_HEAP_TYPE_DMA)
 
-/* ion_client
- * An ION client is an object or an entity that needs to use the service of
- * ION and has unique address space. ion_client is an identifier of an ION
- * client and it represents the ION client.
- * All operations on ION needs a valid ion_client value and it can be obtained
- * by ion_client_create().
+#define ION_NUM_HEAP_IDS		sizeof(unsigned int) * 8
+
+/**
+ * allocation flags - the lower 16 bits are used by core ion, the upper 16
+ * bits are reserved for use by the heaps themselves.
  */
-typedef int ion_client;
+#define ION_FLAG_CACHED 1		/* mappings of this buffer should be
+					   cached, ion will do cache
+					   maintenance when the buffer is
+					   mapped for dma */
+#define ION_FLAG_CACHED_NEEDS_SYNC 2	/* mappings of this buffer will created
+					   at mmap time, if this is set
+					   caches must be managed manually */
+#define ION_FLAG_PRESERVE_KMAP 4 	/* deprecated. ignored. */
+#define ION_FLAG_NOZEROED 8		/* Allocated buffer is not initialized
+					   with zero value and userspace is not
+					   able to access the buffer
+					 */
 
-/* ion_buffer
- * An identifier of a buffer allocated from ION. You must obtain to access
- * a buffer allocated from ION. If you have an effective ion_buffer, you have
- * three options to work with it.
- * - To access  the buffer, you can request an address (user virtual address)
- *   of the buffer with ion_map().
- * - To pass the buffer to the kernel, you can pass the ion_buffer to the
- *   kernel driver directly, if the kernel driver can work with ION.
- * - To pass the buffer to other processes, you can pass the ion_buffer to
- *   other processes through RPC machanism such as socket communication or
- *   Android Binder because ion_buffer is actually an open file descripotor
- *   of the current process.
- */
-typedef int ion_buffer;
+#ifdef __KERNEL__
+struct ion_device;
+struct ion_heap;
+struct ion_mapper;
+struct ion_client;
+struct ion_buffer;
 
-/* ion_client_create()
- * @RETURN: new ion_client.
- *          netative value if creating new ion_client is failed.
+/* This should be removed some day when phys_addr_t's are fully
+   plumbed in the kernel, and all instances of ion_phys_addr_t should
+   be converted to phys_addr_t.  For the time being many kernel interfaces
+   do not accept phys_addr_t's that would have to */
+#define ion_phys_addr_t unsigned long
+
+/**
+ * struct ion_platform_heap - defines a heap in the given platform
+ * @type:	type of the heap from ion_heap_type enum
+ * @id:		unique identifier for heap.  When allocating higher numbers
+ * 		will be allocated from first.  At allocation these are passed
+ *		as a bit mask and therefore can not exceed ION_NUM_HEAP_IDS.
+ * @name:	used for debug purposes
+ * @base:	base address of heap in physical memory if applicable
+ * @size:	size of the heap in bytes if applicable
+ * @align:	required alignment in physical memory if applicable
+ * @priv:	private info passed from the board file
  *
- * A call to ion_client_create() must be paired with ion_client_destroy(),
- * symmetrically. ion_client_destroy() needs a valid ion_client that
- * is returned by ion_client_create().
+ * Provided by the board file.
  */
-ion_client ion_client_create(void);
+struct ion_platform_heap {
+	enum ion_heap_type type;
+	unsigned int id;
+	const char *name;
+	ion_phys_addr_t base;
+	size_t size;
+	ion_phys_addr_t align;
+	void *priv;
+};
 
-/* ion_client_destroy()
- * @client: An ion_client value to remove.
- */
-void ion_client_destroy(ion_client client);
-
-/* ion_alloc() - Allocates new buffer from ION.
- * @client: A valid ion_client value returned by ion_client_create().
- * @len: Size of a buffer required in bytes.
- * @align: Alignment requirements of @len and the start address of the allocated
- *         buffer. If the @len is not aligned by @align, ION allocates a buffer
- *         that is aligned by @align and the size of the buffer will be larger
- *         than @len.
- * @heap_mask: Mask of heaps which you want this allocation to be served from.
- * @flags: Additional requirements about buffer. ION_FLAG_CACHED for a 
- * 	   buffer you want to have a cached mapping of
- * @RETURN: An ion_buffer that represents the buffer allocated. It is only
- *          unique in the context of the given client, @client.
- *          -error if the allocation failed.
- *          See the description of ion_buffer above for detailed information.
- */
-ion_buffer ion_alloc(ion_client client, size_t len, size_t align,
-                     unsigned int heap_mask, unsigned int flags);
-
-/* ion_free() - Frees an existing buffer that is allocated by ION
- * @buffer: An ion_buffer of the buffer to be released.
- */
-void ion_free(ion_buffer buffer);
-
-/* ion_map() - Obtains a virtual address of the buffer identied by @buffer
- * @buffer: The buffer to map. The virtual address returned is allocated by the
- *          kernel.
- * @len: The size of the buffer to map. This must not exceed the size of the
- *       buffer represented by @fd_buf. Thus you need to know the size of it
- *       before calling this function. If @len is less than the size of the
- *       buffer, this function just map just the size requested (@len) not the
- *       entire buffer.
- * @offset: How many pages will be ignored while mapping.@offset number of
- *       pages from the start of the buffer will not be mapped.
- * @RETURN: The start virtual addres mapped.
- *          MAP_FAILED if mapping fails.
+/**
+ * struct ion_platform_data - array of platform heaps passed from board file
+ * @nr:		number of structures in the array
+ * @heaps:	array of platform_heap structions
  *
- * Note that @len + (@offset * PAGE_SIZE) must not exceed the size of the
- * buffer.
+ * Provided by the board file in the form of platform data to a platform device.
  */
-void *ion_map(ion_buffer buffer, size_t len, off_t offset);
+struct ion_platform_data {
+	int nr;
+	struct ion_platform_heap *heaps;
+};
 
-/* ion_unmap() - Frees the buffer mapped by ion_map()
- * @addr: The address returned by ion_map().
- * @len: The size of the buffer mapped by ion_map().
- * @RETURN: 0 on success, and -1 on failure.
- *          errno is also set on failure.
- */
-int ion_unmap(void *addr, size_t len);
-
-/* ion_msync() - Makes sure that data in the buffer are visible to H/W peri.
- * @client: A valid ion_client value returned by ion_client_create().
- * @buffer: The buffer to perform ion_msync().
- * @flags: Direction of access of H/W peri and CPU. See the description of
- *         ION_MSYNC_FLAGS.
- * @size: Size to ion_msync() in bytes.
- * @offset: Where ion_msync() start in @buffer, size in bytes.
- * @RETURN: 0 if successful. -error, otherwise.
+/**
+ * ion_reserve() - reserve memory for ion heaps if applicable
+ * @data:	platform data specifying starting physical address and
+ *		size
  *
- * Note that @offset + @size must not exceed the size of @buffer.
+ * Calls memblock reserve to set aside memory for heaps that are
+ * located at specific memory addresses or of specfic sizes not
+ * managed by the kernel
  */
-int ion_sync(ion_client client, ion_buffer buffer);
+void ion_reserve(struct ion_platform_data *data);
 
-int ion_incRef(int fd, int share_fd, unsigned long **handle);
+/**
+ * ion_client_create() -  allocate a client and returns it
+ * @dev:		the global ion device
+ * @heap_type_mask:	mask of heaps this client can allocate from
+ * @name:		used for debugging
+ */
+struct ion_client *ion_client_create(struct ion_device *dev,
+				     const char *name);
 
-int ion_decRef(int fd, unsigned long *handle);
+/**
+ * ion_client_destroy() -  free's a client and all it's handles
+ * @client:	the client
+ *
+ * Free the provided client and all it's resources including
+ * any handles it is holding.
+ */
+void ion_client_destroy(struct ion_client *client);
 
-#ifdef __cplusplus
-}
-#endif
-#endif /* _LIB_ION_H_ */
+/**
+ * ion_alloc - allocate ion memory
+ * @client:		the client
+ * @len:		size of the allocation
+ * @align:		requested allocation alignment, lots of hardware blocks
+ *			have alignment requirements of some kind
+ * @heap_id_mask:	mask of heaps to allocate from, if multiple bits are set
+ *			heaps will be tried in order from highest to lowest
+ *			id
+ * @flags:		heap flags, the low 16 bits are consumed by ion, the
+ *			high 16 bits are passed on to the respective heap and
+ *			can be heap custom
+ *
+ * Allocate memory in one of the heaps provided in heap mask and return
+ * an opaque handle to it.
+ */
+struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
+			     size_t align, unsigned int heap_id_mask,
+			     unsigned int flags);
+
+/**
+ * ion_free - free a handle
+ * @client:	the client
+ * @handle:	the handle to free
+ *
+ * Free the provided handle.
+ */
+void ion_free(struct ion_client *client, struct ion_handle *handle);
+
+/**
+ * ion_phys - returns the physical address and len of a handle
+ * @client:	the client
+ * @handle:	the handle
+ * @addr:	a pointer to put the address in
+ * @len:	a pointer to put the length in
+ *
+ * This function queries the heap for a particular handle to get the
+ * handle's physical address.  It't output is only correct if
+ * a heap returns physically contiguous memory -- in other cases
+ * this api should not be implemented -- ion_sg_table should be used
+ * instead.  Returns -EINVAL if the handle is invalid.  This has
+ * no implications on the reference counting of the handle --
+ * the returned value may not be valid if the caller is not
+ * holding a reference.
+ */
+int ion_phys(struct ion_client *client, struct ion_handle *handle,
+	     ion_phys_addr_t *addr, size_t *len);
+
+/**
+ * ion_map_dma - return an sg_table describing a handle
+ * @client:	the client
+ * @handle:	the handle
+ *
+ * This function returns the sg_table describing
+ * a particular ion handle.
+ */
+struct sg_table *ion_sg_table(struct ion_client *client,
+			      struct ion_handle *handle);
+
+/**
+ * ion_map_kernel - create mapping for the given handle
+ * @client:	the client
+ * @handle:	handle to map
+ *
+ * Map the given handle into the kernel and return a kernel address that
+ * can be used to access this address.
+ */
+void *ion_map_kernel(struct ion_client *client, struct ion_handle *handle);
+
+/**
+ * ion_unmap_kernel() - destroy a kernel mapping for a handle
+ * @client:	the client
+ * @handle:	handle to unmap
+ */
+void ion_unmap_kernel(struct ion_client *client, struct ion_handle *handle);
+
+/**
+ * ion_share_dma_buf() - share buffer as dma-buf
+ * @client:	the client
+ * @handle:	the handle
+ */
+struct dma_buf *ion_share_dma_buf(struct ion_client *client,
+						struct ion_handle *handle);
+
+/**
+ * ion_share_dma_buf_fd() - given an ion client, create a dma-buf fd
+ * @client:	the client
+ * @handle:	the handle
+ */
+int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle);
+
+/**
+ * ion_import_dma_buf() - given an dma-buf fd from the ion exporter get handle
+ * @client:	the client
+ * @fd:		the dma-buf fd
+ *
+ * Given an dma-buf fd that was allocated through ion via ion_share_dma_buf,
+ * import that fd and return a handle representing it.  If a dma-buf from
+ * another exporter is passed in this function will return ERR_PTR(-EINVAL)
+ */
+struct ion_handle *ion_import_dma_buf(struct ion_client *client, int fd);
+
+#include <linux/dma-direction.h>
+#include <linux/dma-buf.h>
+
+dma_addr_t ion_iovmm_map(struct dma_buf_attachment *attachment,
+			 off_t offset, size_t size,
+			 enum dma_data_direction direction, int id);
+void ion_iovmm_unmap(struct dma_buf_attachment *attachment, dma_addr_t iova);
+
+#endif /* __KERNEL__ */
+
+/**
+ * DOC: Ion Userspace API
+ *
+ * create a client by opening /dev/ion
+ * most operations handled via following ioctls
+ *
+ */
+
+/**
+ * struct ion_allocation_data - metadata passed from userspace for allocations
+ * @len:		size of the allocation
+ * @align:		required alignment of the allocation
+ * @heap_id_mask:	mask of heap ids to allocate from
+ * @flags:		flags passed to heap
+ * @handle:		pointer that will be populated with a cookie to use to 
+ *			refer to this allocation
+ *
+ * Provided by userspace as an argument to the ioctl
+ */
+struct ion_allocation_data {
+	size_t len;
+	size_t align;
+	unsigned int heap_id_mask;
+	unsigned int flags;
+	ion_user_handle_t handle;
+};
+
+/**
+ * struct ion_fd_data - metadata passed to/from userspace for a handle/fd pair
+ * @handle:	a handle
+ * @fd:		a file descriptor representing that handle
+ *
+ * For ION_IOC_SHARE or ION_IOC_MAP userspace populates the handle field with
+ * the handle returned from ion alloc, and the kernel returns the file
+ * descriptor to share or map in the fd field.  For ION_IOC_IMPORT, userspace
+ * provides the file descriptor and the kernel returns the handle.
+ */
+struct ion_fd_data {
+	ion_user_handle_t handle;
+	int fd;
+};
+
+/**
+ * struct ion_handle_data - a handle passed to/from the kernel
+ * @handle:	a handle
+ */
+struct ion_handle_data {
+	ion_user_handle_t handle;
+};
+
+/**
+ * struct ion_custom_data - metadata passed to/from userspace for a custom ioctl
+ * @cmd:	the custom ioctl function to call
+ * @arg:	additional data to pass to the custom ioctl, typically a user
+ *		pointer to a predefined structure
+ *
+ * This works just like the regular cmd and arg fields of an ioctl.
+ */
+struct ion_custom_data {
+	unsigned int cmd;
+	unsigned long arg;
+};
+
+/**
+ * struct ion_preload_data - metadata for preload buffers
+ * @heap_id_mask:	mask of heap ids to allocate from
+ * @len:		size of the allocation
+ * @flags:		flags passed to heap
+ * @count:		number of buffers of the allocation
+ *
+ * Provided by userspace as an argument to the ioctl
+ */
+struct ion_preload_object {
+	size_t len;
+	unsigned int count;
+};
+
+struct ion_preload_data {
+	unsigned int heap_id_mask;
+	unsigned int flags;
+	unsigned int count;
+	struct ion_preload_object *obj;
+};
+
+#define ION_IOC_MAGIC		'I'
+
+/**
+ * DOC: ION_IOC_ALLOC - allocate memory
+ *
+ * Takes an ion_allocation_data struct and returns it with the handle field
+ * populated with the opaque handle for the allocation.
+ */
+#define ION_IOC_ALLOC		_IOWR(ION_IOC_MAGIC, 0, \
+				      struct ion_allocation_data)
+
+/**
+ * DOC: ION_IOC_FREE - free memory
+ *
+ * Takes an ion_handle_data struct and frees the handle.
+ */
+#define ION_IOC_FREE		_IOWR(ION_IOC_MAGIC, 1, struct ion_handle_data)
+
+/**
+ * DOC: ION_IOC_MAP - get a file descriptor to mmap
+ *
+ * Takes an ion_fd_data struct with the handle field populated with a valid
+ * opaque handle.  Returns the struct with the fd field set to a file
+ * descriptor open in the current address space.  This file descriptor
+ * can then be used as an argument to mmap.
+ */
+#define ION_IOC_MAP		_IOWR(ION_IOC_MAGIC, 2, struct ion_fd_data)
+
+/**
+ * DOC: ION_IOC_SHARE - creates a file descriptor to use to share an allocation
+ *
+ * Takes an ion_fd_data struct with the handle field populated with a valid
+ * opaque handle.  Returns the struct with the fd field set to a file
+ * descriptor open in the current address space.  This file descriptor
+ * can then be passed to another process.  The corresponding opaque handle can
+ * be retrieved via ION_IOC_IMPORT.
+ */
+#define ION_IOC_SHARE		_IOWR(ION_IOC_MAGIC, 4, struct ion_fd_data)
+
+/**
+ * DOC: ION_IOC_IMPORT - imports a shared file descriptor
+ *
+ * Takes an ion_fd_data struct with the fd field populated with a valid file
+ * descriptor obtained from ION_IOC_SHARE and returns the struct with the handle
+ * filed set to the corresponding opaque handle.
+ */
+#define ION_IOC_IMPORT		_IOWR(ION_IOC_MAGIC, 5, struct ion_fd_data)
+
+/**
+ * DOC: ION_IOC_SYNC - syncs a shared file descriptors to memory
+ *
+ * Deprecated in favor of using the dma_buf api's correctly (syncing
+ * will happend automatically when the buffer is mapped to a device).
+ * If necessary should be used after touching a cached buffer from the cpu,
+ * this will make the buffer in memory coherent.
+ */
+#define ION_IOC_SYNC		_IOWR(ION_IOC_MAGIC, 7, struct ion_fd_data)
+
+/**
+ * DOC: ION_IOC_PRELOAD_ALLOC - prefetches pages to page pool
+ */
+#define ION_IOC_PRELOAD_ALLOC	_IOW(ION_IOC_MAGIC, 8, struct ion_preload_data)
+
+/**
+ * DOC: ION_IOC_CUSTOM - call architecture specific ion ioctl
+ *
+ * Takes the argument of the architecture specific ioctl to call and
+ * passes appropriate userdata for that ioctl
+ */
+#define ION_IOC_CUSTOM		_IOWR(ION_IOC_MAGIC, 6, struct ion_custom_data)
+
+#endif /* _LINUX_ION_H */

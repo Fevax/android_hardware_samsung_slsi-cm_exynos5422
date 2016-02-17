@@ -18,8 +18,7 @@
 PRODUCT_PACKAGES += \
 	libOMX.Exynos.VP8.Encoder
 
-# Keymaster
-ifeq ($(BOARD_USES_TRUST_KEYMASTER), true)
+# HAL
 PRODUCT_PACKAGES += \
+	gralloc.exynos5 \
 	keystore.exynos5
-endif

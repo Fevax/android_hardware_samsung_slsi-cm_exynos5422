@@ -69,6 +69,7 @@ struct s3c_fb_win_config {
 		S3C_FB_WIN_STATE_BUFFER,
 		S3C_FB_WIN_STATE_OTF,
 	} state;
+
 	union {
 		__u32 color;
 		struct {
