@@ -24,7 +24,12 @@ exynos5422_dirs := \
 	libhwcutilsmodule \
 	libhdmimodule \
 	libhwjpeg \
-	libsecurepath 
+	libsecurepath \
+
+ifeq ($(CAMERA_BUILD_ON), true)
+exynos5422_dirs := \
+	licamera
+endif
 
 ifeq ($(BOARD_USES_VIRTUAL_DISPLAY), true)
 exynos5422_dirs += \

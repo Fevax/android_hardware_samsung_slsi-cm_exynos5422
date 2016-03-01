@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifeq ($(TARGET_BOOTLOADER_BOARD_NAME), xyref5433)
+ifeq ($(TARGET_BOOTLOADER_BOARD_NAME), universal5422)
 
 LOCAL_PATH:= $(call my-dir)
 
@@ -56,7 +56,10 @@ LOCAL_C_INCLUDES += \
 	$(TOP)/vendor/samsung/feature/CscFeature/libsecnativefeature \
 	$(TOP)/bionic \
 	$(TOP)/external/expat/lib \
-	$(TOP)/external/stlport/stlport
+	$(TOP)/external/stlport/stlport \
+	$(TOP)/system/media/camera/include \
+#	$(TOP)/kernel/samsung/exynos5422/include/uapi/linux \
+#	$(TOP)/kernel/samsung/exynos5422/include/uapi
 
 LOCAL_SRC_FILES:= \
 	ExynosCameraSensorInfo.cpp \
@@ -120,8 +123,8 @@ LOCAL_C_INCLUDES += \
 	$(TOP)/hardware/samsung_slsi-cm/$(TARGET_SOC)/include \
 	$(TOP)/hardware/samsung_slsi-cm/$(TARGET_BOARD_PLATFORM)/include \
 	$(TOP)/hardware/samsung_slsi-cm/$(TARGET_BOARD_PLATFORM)/libcamera \
-	frameworks/native/include \
-	system/media/camera/include
+	$(TOP)/frameworks/native/include \
+	$(TOP)/system/media/camera/include
 
 LOCAL_SRC_FILES:= \
 	../../exynos/libcamera/common/ExynosCameraInterface.cpp
