@@ -119,7 +119,8 @@ struct private_handle_t {
 		     int h, int format, int stride, int vstride) :
         fd(fd), fd1(-1), fd2(-1), magic(sMagic), flags(flags), size(size),
         offset(0), format(format), width(w), height(h), stride(stride),
-        vstride(vstride), base(0), handle(0), handle1(0), handle2(0)
+        vstride(vstride), base(0), base1(0), base2(0), handle(0), handle1(0),
+        handle2(0)
     {
         version = sizeof(native_handle);
         numInts = sNumInts + 2;
@@ -153,33 +154,17 @@ struct private_handle_t {
         magic = 0;
     }
 
-       static int validate(const native_handle* h) {
+    static int validate(const native_handle* h) {
         const private_handle_t* hnd = (const private_handle_t*)h;
-
-        if (!h) {
-            ALOGE("invalid gralloc handle (NULL)");
-        } else if (h->version != sizeof(native_handle)) {
-            ALOGE("invalid gralloc handle (at %p) - version=%lu (expected=%lu)",
-                  reinterpret_cast<void *>(const_cast<native_handle *>(h)),
-                  (unsigned long)h->version,
-                  (unsigned long)sizeof(native_handle));
-        } else if (hnd->numInts + hnd->numFds != sNumInts + sNumFds) {
-            ALOGE("invalid gralloc handle (at %p) - "
-                  "hnd->numInts(%d) + hnd->numFds(%d) != sNumInts(%d) + sNumFds(%d)",
-                  reinterpret_cast<void *>(const_cast<native_handle *>(h)),
-                  hnd->numInts, hnd->numFds, sNumInts, sNumFds);
-        } else if (hnd->magic != sMagic) {
-            ALOGE("invalid gralloc handle (at %p) - "
-                  "hnd->magic(%x) != sMagic(%x)",
-                  reinterpret_cast<void *>(const_cast<native_handle *>(h)),
-                  hnd->magic, sMagic);
-        }
-
         if (!h || h->version != sizeof(native_handle) ||
             hnd->numInts + hnd->numFds != sNumInts + sNumFds ||
             hnd->magic != sMagic)
         {
-            ALOGE("invalid gralloc handle (at %p)", reinterpret_cast<void *>(const_cast<native_handle *>(h)));
+            void *handle = reinterpret_cast<void *>(const_cast<native_handle *>(h));
+            if(handle != 0)
+            {
+                ALOGE("invalid gralloc handle (at %p)", handle);
+            }
             return -EINVAL;
         }
         return 0;
