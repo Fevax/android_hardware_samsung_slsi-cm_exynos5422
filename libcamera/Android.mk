@@ -56,10 +56,7 @@ LOCAL_C_INCLUDES += \
 	$(TOP)/vendor/samsung/feature/CscFeature/libsecnativefeature \
 	$(TOP)/bionic \
 	$(TOP)/external/expat/lib \
-	$(TOP)/external/stlport/stlport \
-	$(TOP)/system/media/camera/include \
-#	$(TOP)/kernel/samsung/exynos5422/include/uapi/linux \
-#	$(TOP)/kernel/samsung/exynos5422/include/uapi
+	$(TOP)/external/stlport/stlport
 
 LOCAL_SRC_FILES:= \
 	ExynosCameraSensorInfo.cpp \
@@ -123,8 +120,8 @@ LOCAL_C_INCLUDES += \
 	$(TOP)/hardware/samsung_slsi-cm/$(TARGET_SOC)/include \
 	$(TOP)/hardware/samsung_slsi-cm/$(TARGET_BOARD_PLATFORM)/include \
 	$(TOP)/hardware/samsung_slsi-cm/$(TARGET_BOARD_PLATFORM)/libcamera \
-	$(TOP)/frameworks/native/include \
-	$(TOP)/system/media/camera/include
+	frameworks/native/include \
+	system/media/camera/include
 
 LOCAL_SRC_FILES:= \
 	../../exynos/libcamera/common/ExynosCameraInterface.cpp

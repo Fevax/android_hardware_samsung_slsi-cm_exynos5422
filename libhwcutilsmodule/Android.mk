@@ -15,6 +15,7 @@
 ifeq ($(filter-out exynos5,$(TARGET_BOARD_PLATFORM)),)
 
 LOCAL_PATH:= $(call my-dir)
+
 include $(CLEAR_VARS)
 
 LOCAL_PRELINK_MODULE := false
@@ -26,7 +27,7 @@ endif
 
 LOCAL_C_INCLUDES := \
 	$(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include \
-	$(LOCAL_PATH)/../../exynos5/include \
+	$(TOP)/hardware/samsung_slsi-cm/$(TARGET_BOARD_PLATFORM)/include \
 	$(TOP)/hardware/samsung_slsi-cm/exynos/include \
 	$(TOP)/hardware/samsung_slsi-cm/exynos/libexynosutils \
 	$(TOP)/hardware/samsung_slsi-cm/$(TARGET_SOC)/include \

@@ -17,7 +17,6 @@
 
 LOCAL_PATH := $(call my-dir)
 
-
 ###############################################################################
 # libcsecurepath.a
 include $(CLEAR_VARS)
@@ -30,7 +29,7 @@ LOCAL_SRC_FILES	+= 	\
 	sec_g2ddrm.cpp
 
 LOCAL_C_INCLUDES += \
-	$(LOCAL_PATH)/../../exynos5/include \
+	$(TOP)/hardware/samsung_slsi-cm/$(TARGET_BOARD_PLATFORM)/include \
 	$(TOP)/hardware/samsung_slsi-cm/exynos/include
 
 LOCAL_SHARED_LIBRARIES += libMcClient
