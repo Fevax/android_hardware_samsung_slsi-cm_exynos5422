@@ -1416,6 +1416,7 @@ static void checkMobiCoreVersion(
             failed = true;
         }
         LOG_I_RELEASE("versionMci - %s", msg);
+		*/
         if (!checkVersionOkSO(versionPayload.versionInfo.versionSo, &msg)) {
             LOG_E("checkVersionOkSO failed - %s", msg);
             failed = true;
