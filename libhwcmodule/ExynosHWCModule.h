@@ -18,6 +18,7 @@
 #define ANDROID_EXYNOS_HWC_MODULE_H_
 
 #include <hardware/hwcomposer.h>
+#include <linux/s3c-fb.h>
 #include "fimd_fb.h"
 
 #define VSYNC_DEV_PREFIX "/sys/devices/"
