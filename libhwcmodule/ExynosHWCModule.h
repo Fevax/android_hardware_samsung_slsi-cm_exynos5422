@@ -25,7 +25,7 @@
 #define VSYNC_DEV_NAME  "14400000.fimd_fb/vsync"
 
 #define FIMD_WORD_SIZE_BYTES   16
-#define FIMD_BURSTLEN   16
+#define FIMD_BURSTLEN   4
 #define FIMD_ADDED_BURSTLEN_BYTES     4
 #define FIMD_BW_OVERLAP_CHECK
 
