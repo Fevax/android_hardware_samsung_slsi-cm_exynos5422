@@ -47,6 +47,14 @@
 
 #define ION_FLAG_PRESERVE_KMAP 4
 
+#ifndef HAL_PIXEL_FORMAT_sRGB_A_8888
+#define HAL_PIXEL_FORMAT_sRGB_A_8888 12
+#endif
+
+#ifndef HAL_PIXEL_FORMAT_sRGB_X_8888
+#define HAL_PIXEL_FORMAT_sRGB_X_8888 13
+#endif
+
 /*****************************************************************************/
 
 struct gralloc_context_t {
@@ -82,33 +90,33 @@ extern int gralloc_unregister_buffer(gralloc_module_t const* module,
 /*****************************************************************************/
 
 static struct hw_module_methods_t gralloc_module_methods = {
-    .open = gralloc_device_open
+open: gralloc_device_open
 };
 
 struct private_module_t HAL_MODULE_INFO_SYM = {
-    .base = {
-        .common = {
-            .tag = HARDWARE_MODULE_TAG,
-            .version_major = 1,
-            .version_minor = 0,
-            .id = GRALLOC_HARDWARE_MODULE_ID,
-            .name = "Graphics Memory Allocator Module",
-            .author = "The Android Open Source Project",
-            .methods = &gralloc_module_methods
-        },
-        .registerBuffer = gralloc_register_buffer,
-        .unregisterBuffer = gralloc_unregister_buffer,
-        .lock = gralloc_lock,
-        .unlock = gralloc_unlock,
+base: {
+    common: {
+        tag: HARDWARE_MODULE_TAG,
+        version_major: 1,
+        version_minor: 0,
+        id: GRALLOC_HARDWARE_MODULE_ID,
+        name: "Graphics Memory Allocator Module",
+        author: "The Android Open Source Project",
+        methods: &gralloc_module_methods
     },
-    .framebuffer = 0,
-    .flags = 0,
-    .numBuffers = 0,
-    .bufferMask = 0,
-    .lock = PTHREAD_MUTEX_INITIALIZER,
-    .refcount = 0,
-    .currentBuffer = 0,
-    .ionfd = -1,
+    registerBuffer: gralloc_register_buffer,
+    unregisterBuffer: gralloc_unregister_buffer,
+    lock: gralloc_lock,
+    unlock: gralloc_unlock,
+},
+framebuffer: 0,
+flags: 0,
+numBuffers: 0,
+bufferMask: 0,
+lock: PTHREAD_MUTEX_INITIALIZER,
+refcount: 0,
+currentBuffer: 0,
+ionfd: -1,
 };
 
 /*****************************************************************************/
@@ -121,11 +129,9 @@ static unsigned int _select_heap(int usage)
     else
         heap_mask = ION_HEAP_SYSTEM_MASK;
 
-#ifdef GRALLOC_USAGE_GPU_BUFFER
     if (usage & GRALLOC_USAGE_GPU_BUFFER)
         heap_mask = ION_HEAP_EXYNOS_CONTIG_MASK;
-#endif
-	
+
     return heap_mask;
 }
 
@@ -156,6 +162,8 @@ static int gralloc_alloc_rgb(int ionfd, int w, int h, int format, int usage,
         case HAL_PIXEL_FORMAT_RGBA_8888:
         case HAL_PIXEL_FORMAT_RGBX_8888:
         case HAL_PIXEL_FORMAT_BGRA_8888:
+        case HAL_PIXEL_FORMAT_sRGB_A_8888:
+        case HAL_PIXEL_FORMAT_sRGB_X_8888:
             bpp = 4;
             break;
         case HAL_PIXEL_FORMAT_RGB_888:
@@ -208,7 +216,6 @@ static int gralloc_alloc_rgb(int ionfd, int w, int h, int format, int usage,
     err = ion_alloc_fd(ionfd, size, alignment, heap_mask, ion_flags,
                        &fd);
     if (err) {
-#ifdef GRALLOC_USAGE_GPU_BUFFER
         if (usage & GRALLOC_USAGE_GPU_BUFFER) {
             usage &= ~GRALLOC_USAGE_GPU_BUFFER;
             heap_mask = _select_heap(usage);
@@ -218,7 +225,6 @@ static int gralloc_alloc_rgb(int ionfd, int w, int h, int format, int usage,
                 return err;
         }
         else
-#endif
             return err;
     }
     *hnd = new private_handle_t(fd, size, usage, w, h, format, *stride,
@@ -381,11 +387,9 @@ static int gralloc_alloc(alloc_device_t* dev,
     gralloc_module_t* module = reinterpret_cast<gralloc_module_t*>
         (dev->common.module);
 
-#ifdef GRALLOC_USAGE_GPU_BUFFER
     if ((usage & GRALLOC_USAGE_GPU_BUFFER) && (w*h != (m->xres)*(m->yres)))
         usage &= ~GRALLOC_USAGE_GPU_BUFFER;
-#endif
-	
+
     err = gralloc_alloc_rgb(m->ionfd, w, h, format, usage, ion_flags, &hnd,
                             &stride);
     if (err)
