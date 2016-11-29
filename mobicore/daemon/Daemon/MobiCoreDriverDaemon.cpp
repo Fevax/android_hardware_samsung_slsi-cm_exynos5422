@@ -114,8 +114,9 @@ void MobiCoreDriverDaemon::run(
 {
     const char *devNode = "/dev/" MC_ADMIN_DEVNODE;
 
-	LOG_I_RELEASE("Daemon starting up...");
-	LOG_I_RELEASE("Socket interface version is %u.%u", DAEMON_VERSION_MAJOR, DAEMON_VERSION_MINOR);
+    LOG_I_RELEASE("Daemon starting up...");
+    LOG_I_RELEASE("Socket interface version is %u.%u", DAEMON_VERSION_MAJOR, DAEMON_VERSION_MINOR);
+
 #ifdef MOBICORE_COMPONENT_BUILD_TAG
     LOG_I_RELEASE("%s", MOBICORE_COMPONENT_BUILD_TAG);
 #else
@@ -141,9 +142,6 @@ void MobiCoreDriverDaemon::run(
 
     // start device (scheduler)
     mobiCoreDevice->start();
-
-    LOG_I_RELEASE("Checking version of <t-base");
-    checkMobiCoreVersion(mobiCoreDevice);
 
     // Load device driver if requested
     if (loadDriver) {
