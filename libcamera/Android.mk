@@ -54,6 +54,7 @@ LOCAL_C_INCLUDES += \
 	$(TOP)/vendor/samsung/feature/CscFeature/libsecnativefeature \
 	$(TOP)/bionic \
 	$(TOP)/external/expat/lib \
+	$(TOP)/system/media/camera/include \
 	$(TOP)/external/stlport/stlport
 
 LOCAL_SRC_FILES:= \
