@@ -20,7 +20,7 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR_SHARED_LIBRARIES)/hw
-LOCAL_SHARED_LIBRARIES := liblog libcutils libion libutils
+LOCAL_SHARED_LIBRARIES := liblog libcutils libion libutils libGLESv1_CM
 
 LOCAL_C_INCLUDES := \
 	$(LOCAL_PATH)/../include \
@@ -29,11 +29,17 @@ LOCAL_C_INCLUDES := \
 
 LOCAL_SRC_FILES := 	\
 	gralloc.cpp 	\
+	gralloc_vsync.cpp \
 	framebuffer.cpp \
 	mapper.cpp
 
+LOCAL_CFLAGS := -DLOG_TAG=\"gralloc\"
+
+ifeq ($(BOARD_USE_BGRA_8888),true)
+LOCAL_CFLAGS += -DUSE_BGRA_8888
+endif
+
 LOCAL_MODULE := gralloc.exynos5
-LOCAL_CFLAGS:= -DLOG_TAG=\"gralloc\"
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE_OWNER := samsung_arm
 

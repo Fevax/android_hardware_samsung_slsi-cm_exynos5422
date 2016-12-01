@@ -103,9 +103,9 @@ int getSensorId(int camId)
     sensorId = curSensorId;
 #else
     if (camId == CAMERA_ID_BACK) {
-        sensorId = MAIN_CAMERA_SENSOR_NAME;
+        sensorId = SENSOR_NAME_S5K2P2;
     } else if (camId == CAMERA_ID_FRONT) {
-        sensorId = FRONT_CAMERA_SENSOR_NAME;
+        sensorId = SENSOR_NAME_S5K8B1;
     } else {
         ALOGE("ERR(%s):Unknown camera ID(%d)", __FUNCTION__, camId);
     }

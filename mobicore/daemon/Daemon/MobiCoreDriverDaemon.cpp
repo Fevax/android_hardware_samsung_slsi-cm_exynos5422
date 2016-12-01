@@ -112,6 +112,8 @@ void MobiCoreDriverDaemon::run(
     void
 )
 {
+    const char *devNode = "/dev/" MC_ADMIN_DEVNODE;
+
     LOG_I_RELEASE("Daemon starting up...");
     LOG_I_RELEASE("Socket interface version is %u.%u", DAEMON_VERSION_MAJOR, DAEMON_VERSION_MINOR);
 
@@ -132,17 +134,14 @@ void MobiCoreDriverDaemon::run(
 
     // initialize device (setupo MCI)
     if (!mobiCoreDevice->initDevice(
-                "/dev/" MC_ADMIN_DEVNODE,
+                devNode,
                 enableScheduler)) {
-        LOG_E("Could not initialize <t-base!");
+        LOG_E("Could not initialize <t-base (because %s could not be openend)!", devNode);
         return;
     }
 
     // start device (scheduler)
     mobiCoreDevice->start();
-
-    LOG_I_RELEASE("Checking version of <t-base");
-    checkMobiCoreVersion(mobiCoreDevice);
 
     // Load device driver if requested
     if (loadDriver) {
@@ -1411,28 +1410,29 @@ static void checkMobiCoreVersion(
         // Check <t-base version info.
         char *msg;
         if (!checkVersionOkMCI(versionPayload.versionInfo.versionMci, &msg)) {
-            LOG_E("%s", msg);
+            LOG_E("checkVersionOkMCI failed - %s", msg);
             failed = true;
         }
-        LOG_I_RELEASE("%s", msg);
+        LOG_I_RELEASE("versionMci - %s", msg);
         if (!checkVersionOkSO(versionPayload.versionInfo.versionSo, &msg)) {
-            LOG_E("%s", msg);
+            LOG_E("checkVersionOkSO failed - %s", msg);
             failed = true;
         }
-        LOG_I_RELEASE("%s", msg);
+        LOG_I_RELEASE("versionSo - %s", msg);
         if (!checkVersionOkMCLF(versionPayload.versionInfo.versionMclf, &msg)) {
-            LOG_E("%s", msg);
+            LOG_E("checkVersionOkMCLF failed - %s", msg);
             failed = true;
         }
-        LOG_I_RELEASE("%s", msg);
+        LOG_I_RELEASE("versionInfo - %s", msg);
         if (!checkVersionOkCONTAINER(versionPayload.versionInfo.versionContainer, &msg)) {
-            LOG_E("%s", msg);
+            LOG_E("checkVersionOkCONTAINER failed - %s", msg);
             failed = true;
         }
-        LOG_I_RELEASE("%s", msg);
+        LOG_I_RELEASE("versionContainer - %s", msg);
     }
 
     if (failed) {
+        LOG_E("Failed to check mobiCore version");
         exit(1);
     }
 }

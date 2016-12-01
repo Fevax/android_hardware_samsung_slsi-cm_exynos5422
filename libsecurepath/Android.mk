@@ -17,6 +17,7 @@
 
 LOCAL_PATH := $(call my-dir)
 
+
 ###############################################################################
 # libcsecurepath.a
 include $(CLEAR_VARS)
@@ -29,11 +30,12 @@ LOCAL_SRC_FILES	+= 	\
 	sec_g2ddrm.cpp
 
 LOCAL_C_INCLUDES += \
-	$(TOP)/hardware/samsung_slsi-cm/$(TARGET_BOARD_PLATFORM)/include \
-	$(TOP)/hardware/samsung_slsi-cm/exynos/include
+	$(LOCAL_PATH)/../../exynos5/include \
+	$(TOP)/hardware/samsung_slsi-cm/exynos/include \
+	$(TOP)/hardware/samsung_slsi-cm/exynos5422/mobicore/common/LogWrapper
 
-LOCAL_SHARED_LIBRARIES += libMcClient
+LOCAL_SHARED_LIBRARIES += libMcClient liblog
 
-include hardware/samsung_slsi-cm/$(TARGET_SOC)/mobicore/common/LogWrapper/Android.mk
+LOCAL_CFLAGS += -DLOG_ANDROID
 
 include $(BUILD_STATIC_LIBRARY)

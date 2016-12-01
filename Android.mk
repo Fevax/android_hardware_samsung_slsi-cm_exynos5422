@@ -14,21 +14,17 @@
 # limitations under the License.
 #
 
+ifeq ($(TARGET_BOARD_PLATFORM), exynos5)
 ifeq ($(TARGET_SLSI_VARIANT), cm)
 ifeq ($(TARGET_SOC), exynos5422)
 exynos5422_dirs := \
-	mobicore \
+        mobicore \
 	gralloc \
 	libdisplaymodule \
 	libhwcutilsmodule \
 	libhdmimodule \
 	libhwjpeg \
 	libsecurepath 
-
-ifeq ($(CAMERA_BUILD_ON), true)
-exynos5422_dirs := \
-	licamera
-endif
 
 ifeq ($(BOARD_USES_VIRTUAL_DISPLAY), true)
 exynos5422_dirs += \
@@ -42,5 +38,6 @@ endif
 
 include $(call all-named-subdir-makefiles,$(exynos5422_dirs))
 
+endif
 endif
 endif

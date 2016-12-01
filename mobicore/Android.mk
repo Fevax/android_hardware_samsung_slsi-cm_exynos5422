@@ -5,7 +5,6 @@
 # =============================================================================
 MOBICORE_PROJECT_PATH := $(call my-dir)
 # Setup common variables
-LOG_WRAPPER := $(MOBICORE_PROJECT_PATH)/common/LogWrapper
 COMP_PATH_MobiCore := $(MOBICORE_PROJECT_PATH)/common/MobiCore
 COMP_PATH_MobiCoreDriverMod := $(MOBICORE_PROJECT_PATH)/include
 
@@ -41,7 +40,7 @@ include $(MOBICORE_PROJECT_PATH)/provlib/Android.mk
 LOCAL_ADDITIONAL_DEPENDENCIES += \
 	$(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
-MOBICORE_DIR_INC := $(MC_INCLUDE_DIR)
+MOBICORE_DIR_INC := $(MC_INCLUDE_DIR) $(MOBICORE_PROJECT_PATH)/common/curl/include
 include $(MOBICORE_PROJECT_PATH)/rootpa/Code/Android/app/jni/Android.mk
 include $(MOBICORE_PROJECT_PATH)/rootpa/Code/Android/lib/Android.mk
 include $(MOBICORE_PROJECT_PATH)/rootpa/Code/Android/app/Android.mk
